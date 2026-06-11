@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Startup Valuation Studio Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { primary: '#0f172a', secondary: '#3b82f6', accent: '#10b981', warning: '#f59e0b', danger: '#ef4444' } } } }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; }
+        body::before {
+            content: 'DEMO VERSION - Save/Print Disabled';
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-35deg);
+            font-size: 3.5vw; color: rgba(239,68,68,0.08); white-space: nowrap;
+            pointer-events: none; z-index: 9998; font-weight: 900; user-select: none;
+        }
+        body::after {
+            content: 'Upgrade at digitalyar.company';
+            position: fixed; top: 20%; left: 10%; transform: rotate(20deg);
+            font-size: 2vw; color: rgba(37,99,235,0.06); white-space: nowrap;
+            pointer-events: none; z-index: 9997; font-weight: 700; user-select: none;
+        }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        input[type=range] { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 5px; outline: none; background: #cbd5e1; }
+        input[type=range]::-webkit-slider-thumb { height: 20px; width: 20px; border-radius: 50%; background: #3b82f6; cursor: pointer; -webkit-appearance: none; margin-top: -7px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body class="antialiased h-screen flex flex-col overflow-hidden">
+
+    <nav class="bg-primary text-white shadow-lg z-50 flex-shrink-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-14 items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">🚀</span>
+                    <h1 class="text-lg font-bold tracking-tight hidden sm:block">Valuation Studio <span class="text-xs bg-warning text-white px-2 py-0.5 rounded-full ml-1">DEMO</span></h1>
+                </div>
+                <div class="flex gap-1 overflow-x-auto">
+                    <button onclick="switchTab('calculator')" id="btn-calculator" class="px-3 py-1.5 rounded text-sm font-medium bg-white/10 text-white">🧮 Calculator</button>
+                    <button onclick="switchTab('compare')" id="btn-compare" class="px-3 py-1.5 rounded text-sm font-medium text-slate-300 hover:text-white">⚖️ Compare</button>
+                    <button onclick="switchTab('history')" id="btn-history" class="px-3 py-1.5 rounded text-sm font-medium text-slate-300 hover:text-white">📁 Archive</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-amber-200 px-4 py-1.5 text-center text-xs font-semibold">
+        ⚠️ <strong>DEMO:</strong> Scorecard only. Save/Print/Export disabled. 
+        <a href="https://digitalyar.company/product/spa18-startup-valuation-studio/" target="_blank" class="text-secondary underline font-bold">Upgrade →</a>
+    </div>
+
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div class="max-w-7xl mx-auto">
+
+            <!-- Calculator Tab -->
+            <div id="tab-calculator" class="tab-content active">
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 mb-5 flex flex-col lg:flex-row justify-between gap-4 border-l-4 border-l-secondary">
+                    <div class="w-full lg:w-1/2">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Startup Name:</label>
+                        <input type="text" id="startupName" placeholder="e.g., FinTech PayWallet" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-secondary outline-none text-sm">
+                    </div>
+                    <div class="w-full lg:w-1/2">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Average Market Base ($):</label>
+                        <input type="text" id="baseValStr" oninput="formatBase(this)" value="2,000,000" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-secondary outline-none font-mono font-bold text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                    <div class="lg:col-span-7 space-y-3">
+                        <div class="bg-white border border-slate-200 rounded-2xl p-5">
+                            <h2 class="text-base font-bold text-slate-800 mb-3 border-b pb-2">Scorecard Factors (vs Average)</h2>
+                            <div id="slidersContainer" class="space-y-4"></div>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-5 space-y-5">
+                        <div class="bg-gradient-to-br from-primary to-slate-800 text-white rounded-2xl p-5 shadow-xl text-center relative overflow-hidden">
+                            <div class="absolute -right-8 -top-8 w-24 h-24 bg-secondary rounded-full mix-blend-multiply filter blur-2xl opacity-40"></div>
+                            <div class="relative z-10">
+                                <h3 class="text-slate-300 text-xs font-bold uppercase tracking-wider mb-1">Pre-Money Valuation</h3>
+                                <div class="text-3xl sm:text-4xl font-extrabold text-emerald-300 font-mono" id="finalVal">0</div>
+                                <div class="mt-4 pt-3 border-t border-slate-700/50 text-xs text-slate-400">
+                                    Multiplier: <span class="font-bold text-white" id="totalMult">1.00x</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="showProAlert('Save')" class="bg-slate-300 text-slate-500 px-3 py-2.5 rounded-xl font-bold text-xs cursor-not-allowed opacity-70">💾 Save <span class="text-xs bg-warning text-white px-1.5 py-0.5 rounded ml-1">PRO</span></button>
+                            <button onclick="showProAlert('Print Report')" class="bg-slate-300 text-slate-500 px-3 py-2.5 rounded-xl font-bold text-xs cursor-not-allowed opacity-70">🖨️ Print <span class="text-xs bg-warning text-white px-1.5 py-0.5 rounded ml-1">PRO</span></button>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-2xl p-4">
+                            <h3 class="text-xs font-bold text-slate-600 mb-3 text-center">Startup Profile (Radar)</h3>
+                            <div class="h-48 relative"><canvas id="radarChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compare Tab -->
+            <div id="tab-compare" class="tab-content">
+                <div class="bg-white border border-slate-200 rounded-2xl p-6">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4">⚖️ Compare Startups</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label class="block text-xs font-bold text-blue-600 mb-1">Startup A:</label>
+                            <select id="compareA" onchange="runCompare()" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none text-sm"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-emerald-600 mb-1">Startup B:</label>
+                            <select id="compareB" onchange="runCompare()" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none text-sm"></select>
+                        </div>
+                    </div>
+                    <div id="compareResult" class="text-center text-slate-400 text-sm">Select two startups to compare.</div>
+                    <div id="compareChart" class="h-64 hidden mt-4"><canvas id="compareRadar"></canvas></div>
+                    <p class="text-xs text-warning mt-4">📥 Print Comparison is a Pro feature. <a href="https://digitalyar.company/product/spa18-startup-valuation-studio/" target="_blank" class="text-secondary underline">Upgrade →</a></p>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div id="tab-history" class="tab-content">
+                <div class="bg-white border border-slate-200 rounded-2xl p-6">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4">📁 Valuation Archive</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead><tr class="bg-slate-100 text-slate-600"><th class="p-3">Date</th><th class="p-3">Startup</th><th class="p-3">Method</th><th class="p-3">Value</th></tr></thead>
+                            <tbody id="historyBody" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                    <div id="historyEmpty" class="hidden text-center py-10 text-slate-400">📭 No startups saved yet.</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast" class="fixed bottom-4 left-4 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 text-white px-4 py-2.5 rounded-xl shadow-2xl z-50 text-sm font-medium"></div>
+
+    <script>
+        // DEMO: Scorecard only, no save/print
+        const model = {
+            method: 'scorecard',
+            name: 'Scorecard Method (Bill Payne)',
+            baseVal: 2000000,
+            factors: [
+                { id:'sc_team', name:'Founding Team', weight:30, value:1.0, desc:'Experience and commitment of founders' },
+                { id:'sc_market', name:'Market Size', weight:25, value:1.0, desc:'TAM & growth rate' },
+                { id:'sc_prod', name:'Product & Technology', weight:15, value:1.0, desc:'Product readiness and tech advantage' },
+                { id:'sc_comp', name:'Competitive Environment', weight:10, value:1.0, desc:'Barriers to entry' },
+                { id:'sc_sales', name:'Sales & Marketing', weight:10, value:1.0, desc:'GTM strategy' },
+                { id:'sc_risk', name:'Capital Need / Risk', weight:10, value:1.0, desc:'Financial risks' }
+            ]
+        };
+
+        let history = [];
+        let charts = { radar: null, compare: null };
+
+        function showProAlert(f) { alert(`🔒 ${f} is a Pro feature.\n\nUpgrade at: digitalyar.company/product/spa18-startup-valuation-studio/`); }
+        function formatNum(x) { return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+        function formatMoney(n) { return n>=1e6?'$'+(n/1e6).toFixed(2).replace(/\.00$/,'')+'M':'$'+formatNum(Math.round(n)); }
+
+        function formatBase(input) {
+            let v = input.value.replace(/\D/g,'') || '0';
+            model.baseVal = parseInt(v,10);
+            input.value = formatNum(v);
+            calc();
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            ['calculator','compare','history'].forEach(t => {
+                const btn = document.getElementById(`btn-${t}`);
+                if(t===tab) { btn.classList.add('bg-white/10','text-white'); btn.classList.remove('text-slate-300'); }
+                else { btn.classList.remove('bg-white/10','text-white'); btn.classList.add('text-slate-300'); }
+            });
+            if(tab==='history') renderHistory();
+            if(tab==='compare') populateCompare();
+        }
+
+        function renderSliders() {
+            const c = document.getElementById('slidersContainer');
+            c.innerHTML = model.factors.map((f,i) => {
+                const pct = Math.round(f.value*100);
+                const cls = pct<80?'text-red-500':pct>120?'text-emerald-500':'text-blue-600';
+                return `<div class="bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                    <div class="flex justify-between items-start mb-1">
+                        <div><h4 class="font-bold text-slate-800 text-sm">${i+1}. ${f.name} <span class="text-xs text-slate-400">(W:${f.weight}%)</span></h4><p class="text-xs text-slate-500">${f.desc}</p></div>
+                        <div class="bg-white border px-2 py-1 rounded text-center min-w-[60px]"><span class="font-bold text-sm ${cls}" id="vd_${f.id}">${pct}%</span></div>
+                    </div>
+                    <input type="range" min="0" max="200" step="5" value="${pct}" oninput="onSlider('${f.id}',this.value)">
+                    <div class="flex justify-between text-xs text-slate-400 mt-1"><span>0%</span><span>100%</span><span>200%</span></div>
+                </div>`;
+            }).join('');
+        }
+
+        function onSlider(id, val) {
+            const f = model.factors.find(x=>x.id===id);
+            if(!f) return;
+            f.value = parseInt(val,10)/100;
+            document.getElementById(`vd_${id}`).textContent = val+'%';
+            document.getElementById(`vd_${id}`).className = 'font-bold text-sm '+(val<80?'text-red-500':val>120?'text-emerald-500':'text-blue-600');
+            calc();
+        }
+
+        function calc() {
+            let totalMult = 0;
+            model.factors.forEach(f => totalMult += (f.weight/100)*f.value);
+            const finalVal = model.baseVal * totalMult;
+            document.getElementById('finalVal').textContent = formatNum(Math.round(finalVal));
+            document.getElementById('totalMult').textContent = totalMult.toFixed(2)+'x';
+            updateChart();
+        }
+
+        function updateChart() {
+            if(charts.radar) charts.radar.destroy();
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            charts.radar = new Chart(ctx, {
+                type:'radar',
+                data:{
+                    labels: model.factors.map(f=>f.name),
+                    datasets:[{ label:'Status', data:model.factors.map(f=>Math.round(f.value*100)), backgroundColor:'rgba(59,130,246,0.2)', borderColor:'#3b82f6', borderWidth:2 }]
+                },
+                options:{ scales:{ r:{ suggestedMin:0, suggestedMax:150, ticks:{display:false} } }, plugins:{ legend:{display:false} }, maintainAspectRatio:false }
+            });
+        }
+
+        function populateCompare() {
+            const a=document.getElementById('compareA'), b=document.getElementById('compareB');
+            let opts = '<option value="">-- Select --</option>';
+            [...history].sort((x,y)=>y.finalValuation-x.finalValuation).forEach(h => opts += `<option value="${h.id}">${h.name} (${formatMoney(h.finalValuation)})</option>`);
+            a.innerHTML = opts; b.innerHTML = opts;
+        }
+
+        function runCompare() {
+            const idA=document.getElementById('compareA').value, idB=document.getElementById('compareB').value;
+            const res=document.getElementById('compareResult'), chartDiv=document.getElementById('compareChart');
+            if(!idA||!idB){ res.innerHTML='<p class="text-center text-slate-400 text-sm mt-5">Select two startups.</p>'; chartDiv.classList.add('hidden'); if(charts.compare){charts.compare.destroy();charts.compare=null;} return; }
+            const sA=history.find(h=>h.id===idA), sB=history.find(h=>h.id===idB);
+            if(!sA||!sB) return;
+
+            let diff = sA.finalValuation - sB.finalValuation;
+            let diffText = diff!==0 ? `<strong>${diff>0?sA.name:sB.name}</strong> valued higher by <strong>${formatMoney(Math.abs(diff))}</strong>` : 'Both have the same valuation.';
+            res.innerHTML = `<div class="p-3 bg-blue-50 border border-blue-100 rounded mb-2 text-sm"><strong>🔵 ${sA.name}:</strong> ${formatMoney(sA.finalValuation)}</div><div class="p-3 bg-emerald-50 border border-emerald-100 rounded mb-2 text-sm"><strong>🟢 ${sB.name}:</strong> ${formatMoney(sB.finalValuation)}</div><div class="text-center text-sm p-2 bg-slate-100 rounded">${diffText}</div>`;
+
+            chartDiv.classList.remove('hidden');
+            if(charts.compare) charts.compare.destroy();
+            const ctx = document.getElementById('compareRadar').getContext('2d');
+            charts.compare = new Chart(ctx, {
+                type:'radar',
+                data:{
+                    labels: sA.factors.map(f=>f.name),
+                    datasets:[
+                        { label:sA.name, data:sA.factors.map(f=>Math.round(f.value*100)), backgroundColor:'rgba(59,130,246,0.2)', borderColor:'#3b82f6', borderWidth:2 },
+                        { label:sB.name, data:sB.factors.map(f=>Math.round(f.value*100)), backgroundColor:'rgba(16,185,129,0.2)', borderColor:'#10b981', borderWidth:2 }
+                    ]
+                },
+                options:{ scales:{ r:{ suggestedMin:0,suggestedMax:150,ticks:{display:false} } }, plugins:{ legend:{position:'bottom',labels:{font:{family:'Inter'}}} }, maintainAspectRatio:false }
+            });
+        }
+
+        function renderHistory() {
+            const tb = document.getElementById('historyBody'), empty = document.getElementById('historyEmpty');
+            if(history.length===0){ tb.innerHTML=''; empty.classList.remove('hidden'); return; }
+            empty.classList.add('hidden');
+            tb.innerHTML = [...history].sort((a,b)=>b.id-a.id).map(h =>
+                `<tr class="hover:bg-slate-50 border-b border-slate-100">
+                    <td class="p-3 text-xs text-slate-500">${h.date}</td>
+                    <td class="p-3 font-bold text-slate-800">${h.name}</td>
+                    <td class="p-3 text-xs text-slate-500">${h.methodName}</td>
+                    <td class="p-3 font-bold text-primary">${formatMoney(h.finalValuation)}</td>
+                </tr>`
+            ).join('');
+        }
+
+        // Load sample data
+        function loadDemoData() {
+            const samples = [
+                { id:'1710000000001', date:new Date(Date.now()-86400000*2).toLocaleDateString('en-US'), name:'PayWallet FinTech', method:'scorecard', methodName:'Scorecard Method', finalValuation:2450000, factors:model.factors.map(f=>({...f,value:0.8+Math.random()*0.7})) },
+                { id:'1710000000002', date:new Date(Date.now()-86400000*5).toLocaleDateString('en-US'), name:'GreenEnergy IoT', method:'scorecard', methodName:'Scorecard Method', finalValuation:1800000, factors:model.factors.map(f=>({...f,value:0.6+Math.random()*0.5})) },
+                { id:'1710000000003', date:new Date(Date.now()-86400000*10).toLocaleDateString('en-US'), name:'MedTech AI', method:'scorecard', methodName:'Scorecard Method', finalValuation:3200000, factors:model.factors.map(f=>({...f,value:1.0+Math.random()*0.8})) }
+            ];
+            history = samples;
+            renderHistory();
+            populateCompare();
+            showToast('✅ Demo data loaded! 3 sample startups.');
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.classList.remove('translate-y-20','opacity-0');
+            setTimeout(() => t.classList.add('translate-y-20','opacity-0'), 2500);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderSliders(); calc(); loadDemoData();
+        });
+
+        document.addEventListener('contextmenu', e => { e.preventDefault(); alert('⛔ Demo version. Purchase at digitalyar.company'); });
+        document.addEventListener('keydown', e => { if((e.ctrlKey&&e.key==='s')||e.key==='F12') e.preventDefault(); });
+    </script>
+</body>
+</html>
